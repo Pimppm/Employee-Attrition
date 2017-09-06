@@ -1,0 +1,263 @@
+---
+title: "Employee Attrition"
+author: "Pim"
+date: "March 3, 2017"
+output: html_document
+---
+# Load the require packages
+```{r, include=FALSE}
+library(ggplot2)
+library(corrplot)
+library(ggplot2)
+library(reshape2)
+library(plyr)
+library(knitr)
+require(dplyr)
+library(GoodmanKruskal)
+library(ROCR)
+```
+
+#Read data into R
+```{r}
+data <- read.table("data_set.csv", header=T, sep=",")
+attach(data)
+```
+
+#Explore Data
+
+Let's look at the structure of the data
+```{r}
+str(data)
+```
+There are 35 variables and 1470 observations.
+
+Let's convert categorial variables
+```{r}
+data$Education <- as.factor(data$Education)
+data$EnvironmentSatisfaction <- as.factor(data$EnvironmentSatisfaction)
+data$JobInvolvement <- as.factor(data$JobInvolvement)
+data$JobLevel <- as.factor(data$JobLevel)
+data$JobSatisfaction <- as.factor(data$JobSatisfaction)
+data$PerformanceRating <- as.factor(data$PerformanceRating)
+data$RelationshipSatisfaction <- as.factor(data$RelationshipSatisfaction)
+data$StockOptionLevel <- as.factor(data$StockOptionLevel)
+data$WorkLifeBalance <- as.factor(data$WorkLifeBalance)
+```
+
+Now let's look overall of the data
+```{r}
+summary(data)
+```
+There are data issues for these variables; EmployeeCount,Over18, StandardHours.Let's take a closer look into the data.
+
+checking these variables just to make sure
+```{r}
+table(EmployeeCount)
+table(Over18)
+table(StandardHours)
+```
+Now we know there is only one value for these feathers. We should remove them from our model since they are not meaningful indicators.
+
+Let's see how employee attrition
+```{r}
+table(Attrition)
+prop.table(table(Attrition))*100
+```
+Look like 237 people left jobs and about 1233 still stay with companies. The attrtion rate is about 16%. 
+
+Take a look at OverTime variable
+```{r}
+table(OverTime,Attrition)
+prop.table(table(OverTime,Attrition))*100
+
+```
+
+```{r}
+ggplot(data=data, aes(x=OverTime,fill=factor(Attrition))) +
+  geom_bar(stat="count")
+```
+
+As we can see, employee who had to work over time have a slicely higher number of attrition than employee who did not have to work over time.
+
+Let's take a look at the number of total working years.
+
+```{r}
+ggplot(data=data, aes(x=TotalWorkingYears, fill=factor(Attrition))) +
+  geom_bar(stat="count") +
+  labs(x='Years', y= 'Total no of Attrition')
+
+```
+
+Employee who had working less than two years have a very high number of attrition.
+```{r}
+qplot(log(TotalWorkingYears), data=data, geom="density", color=Attrition)
+```
+
+Now move on to the business travel
+```{r}
+ggplot(data=data, aes(x=BusinessTravel, fill=factor(Attrition))) +
+  geom_bar(stat="count") +
+  labs(x='Business Travel', y= 'Total no. of Attrition')
+```
+
+Traveling rarely had the highest no of attrition.
+
+Take a look at Department
+```{r}
+ggplot(data=data, aes(x=Department, fill=factor(Attrition))) +
+  geom_bar(aes(stat="identity")) +
+  labs(x='Department', y= 'Total no. of Attrition')
+```
+
+Now we know that Research & Development department had the hightest no of attrition. 
+
+Now let's move on to Jobsatisfaction
+```{r}
+data$Attrition <- as.factor(data$Attrition)
+ggplot(data=data, aes(x=JobSatisfaction, fill=factor(Attrition))) +
+  geom_bar(stat="count") +
+  labs(x= "Satisfaction", y="Total no of Attrition")
+```
+
+Seem that 1 and 3 which is Low and High had a similar amount of attrition. 2 and 4 which is Medium and Very High had a similar amount of attirtion.
+
+```{r}
+table(EducationField, Attrition)
+```
+
+
+Now let's take a look MontlyIncome
+```{r}
+ggplot(data=data, aes(x=MonthlyIncome, color=Attrition)) +
+  geom_density()
+```
+
+As we can see here the graph showing skewness. Let's do histrogram with log
+
+Histrogram with log(MonthlyIncome)
+```{r}
+qplot(log(MonthlyIncome), data=data, fill = Attrition)
+```
+
+Now we see that there is four peaks in histrogram.
+
+```{r}
+qplot(log(MonthlyIncome), data=data, geom="density", color=Attrition)
+```
+
+Let's check if any correlation between TotalWorkingYears and MonthlyIncome.
+```{r}
+plot(TotalWorkingYears, MonthlyIncome)
+```
+
+There is a positive relationship between two.
+
+```{r}
+YearWkIncome.corre <- cor.test(TotalWorkingYears, MonthlyIncome)
+YearWkIncome.corre
+```
+
+We see Person correlation is 0.773 with a P-value of <2.2e-16. There is strongly relationship between TotalWorkingYears and MonthlyIncome. Let's do regession to examine which one has a better predictive power.
+```{r}
+wrkYearvsIncome.glm <- glm(Attrition ~ Age ,family=binomial(link='logit'), data = data)
+summary(wrkYearvsIncome.glm)
+```
+
+```{r}
+wrkYearvsIncome.glm <- glm(Attrition ~ TotalWorkingYears ,family=binomial(link='logit'), data = data)
+summary(wrkYearvsIncome.glm)
+```
+
+
+
+
+```{r}
+wrkYearvsIncome.glm <- glm(Attrition ~ TotalWorkingYears ,family=binomial(link='logit'), data = data)
+summary(wrkYearvsIncome.glm)
+```
+
+```{r}
+wrkYearvsIncome.glm <- glm(Attrition ~ MonthlyIncome ,family=binomial(link='logit'), data = data)
+summary(wrkYearvsIncome.glm)
+```
+
+
+Turn out TotalWorkingYears had a better power predicting more than MonthlyIncome.TotalWorkingYears has bigger z-value than TotalWorkingYears and P-value is less than.
+
+#Examination the realationship between numeric variables.
+```{r}
+numeric.list <- colnames(data)[sapply(data, is.numeric)]
+numeric.list
+```
+```{r}
+t.test(MonthlyIncome ~ Attrition)
+t.test(TotalWorkingYears ~ Attrition)
+```
+
+```{r}
+t.test(YearsAtCompany ~ Attrition)
+t.test(YearsInCurrentRole ~ Attrition)
+t.test(YearsSinceLastPromotion ~ Attrition)
+t.test(YearsWithCurrManager ~ Attrition)
+```
+
+Let's check correlation of numeric predictors;
+```{r}
+numeric.var.cor <- cor(data[,c("Age","DailyRate","DistanceFromHome","EmployeeNumber","HourlyRate" ,"MonthlyIncome","MonthlyRate","NumCompaniesWorked","PercentSalaryHike","TrainingTimesLastYear","YearsInCurrentRole")])
+corrplot(numeric.var.cor, method="number")
+```
+
+#Examination the realationship between categorical variables
+```{r}
+factor.list <- colnames(data)[sapply(data, is.factor)]
+factor.list
+```
+Let check correlation of categorical predictors;
+set 1 
+```{r}
+factor.var1 <- c("BusinessTravel","Department","Education","EducationField","StockOptionLevel","WorkLifeBalance","Gender","MaritalStatus","RelationshipSatisfaction")
+Att.cate1 <- subset(data, select=factor.var1)
+GKmatrix.att1 <- GKtauDataframe(Att.cate1)
+plot(GKmatrix.att1, diagSize = 0.8)
+```
+
+set2
+```{r}
+factor.var2 <- c("EnvironmentSatisfaction","JobInvolvement","JobLevel","JobRole","JobSatisfaction","OverTime","PerformanceRating")
+Att.cate2 <- subset(data, select=factor.var2)
+GKmatrix.att2 <- GKtauDataframe(Att.cate2)
+plot(GKmatrix.att2, diagSize = 0.8)
+```
+
+#Partitioning data into training and test datasets using R
+Aplit data into Training 55%  and Test 45%
+```{r}
+train_sample <- sample(2,nrow(data), replace=T, prob=c(0.55,0.45))
+train_data <- data[train_sample==1,]
+test_data <- data[train_sample==2,]
+```
+
+#Model
+
+Logistic Regression
+```{r}
+Attrition.glm <- glm(Attrition ~ TotalWorkingYears + DistanceFromHome + OverTime + BusinessTravel + StockOptionLevel + EnvironmentSatisfaction + JobInvolvement + JobSatisfaction -1, family=binomial(link='logit'),data=train_data)
+summary(Attrition.glm)
+```
+
+```{r}
+Atttirion.ANOVA <- anova(Attrition.glm, test="Chisq")
+Atttirion.ANOVA
+```
+
+#Predicting Employee Attrition
+```{r}
+Pred <- predict(Attrition.glm, newdata=subset(test_data, select=c("TotalWorkingYears","DistanceFromHome", "OverTime","BusinessTravel","StockOptionLevel","EnvironmentSatisfaction","JobInvolvement","JobSatisfaction")), type="response")
+
+Preds <- ifelse(Pred > 0.5,"Yes","No")
+```
+
+```{r}
+misClassiFicErr <- mean(Preds != test_data$Attrition)
+print(paste("Accuracy", 1-misClassiFicErr))
+```
